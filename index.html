@@ -455,7 +455,7 @@ const DAY = 86400000;
 const $ = sel => document.querySelector(sel);
 const esc = s => String(s ?? '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 // Escape and isolate Latin terms (ATP, VO₂max, ATP–CrP) so they keep their order inside Hebrew sentences.
-const tx = s => esc(s).replace(/[A-Za-z][A-Za-z0-9₀-₉]*(?:[–\-/+][A-Za-z0-9₀-₉]+)*/g, w => `<bdi>${w}</bdi>`);
+const tx = s => esc(s).replace(/[A-Za-z][A-Za-z0-9₀-₉]*(?:[–\-/+][A-Za-z0-9₀-₉]+)*(?: [A-Za-z0-9][A-Za-z0-9₀-₉]*(?:[–\-/+.][A-Za-z0-9₀-₉]+)*)*/g, w => `<bdi>${w}</bdi>`);
 const shuffle = a => { a = a.slice(); for (let i = a.length - 1; i > 0; i--) { const j = Math.floor(Math.random() * (i + 1)); [a[i], a[j]] = [a[j], a[i]]; } return a; };
 const pct = (a, b) => b ? Math.round(100 * a / b) : 0;
 const nowISO = () => new Date().toISOString();
