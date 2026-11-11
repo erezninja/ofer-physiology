@@ -594,6 +594,21 @@ details.toc .linkbtn { text-align: start; padding: 4px 0; min-height: 32px; }
 .pdfpage canvas { display: block; width: 100%; height: 100%; }
 @media print { .pdfview { display: none !important; } }
 
+/* ---------- home podcast card ---------- */
+.pod { background: var(--warm-soft); border-radius: var(--r); padding: 18px; display: flex; flex-direction: column; gap: 14px; border-inline-start: 4px solid var(--warm); }
+.pod-head { display: flex; gap: 12px; align-items: center; }
+.pod-head h2 { font-family: var(--f-display); font-size: 1.3rem; margin: 2px 0 0; }
+.pod-ico { width: 44px; height: 44px; flex: none; border-radius: 12px; background: var(--warm); display: grid; place-items: center; }
+.pod-ico svg { width: 24px; height: 24px; stroke: #fff; }
+.pod-now { background: var(--surface); border-radius: var(--r-s); padding: 14px; display: flex; flex-direction: column; gap: 8px; }
+.pod-title { font-size: 1.05rem; line-height: 1.4; }
+.pod-now audio { width: 100%; height: 44px; }
+.pod-dots { display: flex; flex-wrap: wrap; gap: 6px; }
+.pod-dot { width: 32px; height: 32px; border-radius: 50%; border: 1.5px solid var(--warm); background: var(--surface); color: var(--warm); font-family: var(--f-mono); font-size: .8rem; font-weight: 600; display: grid; place-items: center; padding: 0; cursor: pointer; }
+.pod-dot.on { background: var(--warm); color: #fff; }
+.pod-dot.now { box-shadow: 0 0 0 3px color-mix(in srgb, var(--warm) 35%, transparent); }
+.ep { scroll-margin-top: 80px; }
+
 </style>
 <div id="app" dir="rtl" lang="he">
   <a class="skip" href="#main">דילוג לתוכן</a>
@@ -898,6 +913,7 @@ VIEWS.home = () => {
     <p>${tx(steps[0].text)}</p>
     <button class="btn primary" data-act="${steps[0].act}" data-args='${esc(JSON.stringify(steps[0].args))}'>${esc(steps[0].cta)}</button>
   </section>
+  ${podcastCardHTML()}
   <div class="quick">
     <button data-act="startCardsQuick" data-args='{"mode":"due"}'><b>${due}</b><span>כרטיסיות לחזרה${fresh ? ` · ${fresh} חדשות` : ''}</span></button>
     <button data-act="${mist ? 'startPracticeQuick' : 'go'}" data-args='${mist ? '{"pool":"mistakes"}' : '{"route":"practice"}'}' ${mist ? '' : 'data-route="practice"'}><b>${mist}</b><span>${mist ? 'שאלות שטעית בהן' : 'טעויות פתוחות. לתרגול'}</span></button>
@@ -912,8 +928,35 @@ VIEWS.home = () => {
   <p class="small muted">אומדן השליטה מוצג רק אחרי 5 שאלות שונות לפחות בנושא. השאלות כאן הן שאלות תרגול שנוסחו על סמך החוברת והמצגות, לא שאלות מבחן רשמיות.</p>
   <h2 class="section-title">מפת כיסוי</h2>
   ${coverageMapHTML()}
-  <button class="panel" style="text-align:start;cursor:pointer" data-act="go" data-route="listen"><b>${icon('listen')} חומרי האזנה</b><span class="small muted">${ready ? `${ready} מתוך ${slots} פרקים מוכנים` : `${slots} פרקים מתוכננים · טרם צורפו הקלטות`}</span></button>`;
+  ${slots && !ready ? `<button class="panel" style="text-align:start;cursor:pointer" data-act="go" data-route="listen"><b>${icon('listen')} חומרי האזנה</b><span class="small muted">${slots} פרקים מתוכננים · טרם צורפו הקלטות</span></button>` : ''}`;
 };
+// Home podcast card: the next unheard episode with its own player (preferring the topic being studied), and an 11-dot progress strip.
+function podcastCardHTML() {
+  const eps = D.episodes.filter(e => e.src); if (!eps.length) return '';
+  const heard = eps.filter(e => S.listened[e.id]).length;
+  const total = Math.round(eps.reduce((a, e) => a + (e.durationSec || 0), 0) / 60);
+  const tid = S.lastViewed.topicId;
+  const onTopic = tid ? eps.find(e => e.topicId === tid && !S.listened[e.id]) : null;
+  const next = onTopic || eps.find(e => !S.listened[e.id]);
+  return `<section class="pod" aria-labelledby="podT">
+    <div class="pod-head"><span class="pod-ico">${icon('listen')}</span><div><span class="eyebrow">הפודקאסט של חלק ב׳ · ${eps.length} פרקים · כ-${Math.floor(total / 60)} שעות ו-${total % 60} דקות</span><h2 id="podT">להאזין בדרך</h2></div></div>
+    ${next ? `<div class="pod-now">
+      <span class="small muted">${onTopic ? 'מתאים לנושא שאת לומדת עכשיו' : heard ? 'הפרק הבא שעוד לא הואזן' : 'מתחילים מכאן'}</span>
+      <b class="pod-title">פרק ${String(next.n).padStart(2, '0')} · ${tx(next.title)}</b>
+      <div class="row">${next.topicId ? topicChip(next.topicId) : '<span class="chip">כל המערכות</span>'}<span class="counter">${fmtDur(next.durationSec)}</span></div>
+      <audio controls preload="none" src="${esc(next.src)}" data-ep="${next.id}" aria-label="נגן: ${esc(next.title)}"></audio>
+      <div class="checks"><label><input type="checkbox" data-act-change="listened" data-ep="${next.id}" ${S.listened[next.id] ? 'checked' : ''}> סימון כהואזן</label></div>
+    </div>` : `<p style="margin:0"><b>האזנת לכל ${eps.length} הפרקים.</b> אפשר לחזור לכל פרק במסך ההאזנה.</p>`}
+    <div class="pod-dots" role="list" aria-label="הואזנו ${heard} מתוך ${eps.length}">${eps.map(e => `<button role="listitem" class="pod-dot ${S.listened[e.id] ? 'on' : ''} ${next && e.id === next.id ? 'now' : ''}" data-ep-dot="${e.id}" data-act="go" data-route="listen" data-anchor="ep-${e.id}" title="${esc(e.title)}" aria-label="פרק ${e.n}: ${esc(e.title)}${S.listened[e.id] ? ' (הואזן)' : ''}">${e.n}</button>`).join('')}</div>
+    <div class="row between"><span class="small" id="podCount">הואזנו ${heard} מתוך ${eps.length}</span><button class="btn small" data-act="go" data-route="listen">כל הפרקים ←</button></div>
+  </section>`;
+}
+// Keep the "heard" marks in step everywhere on the page without re-rendering (a re-render would stop a playing episode).
+function syncListened(id) {
+  document.querySelectorAll(`input[data-act-change="listened"][data-ep="${id}"]`).forEach(x => { x.checked = !!S.listened[id]; });
+  const dot = document.querySelector(`[data-ep-dot="${id}"]`); if (dot) dot.classList.toggle('on', !!S.listened[id]);
+  const cnt = $('#podCount'); if (cnt) { const eps = D.episodes.filter(e => e.src); cnt.textContent = `הואזנו ${eps.filter(e => S.listened[e.id]).length} מתוך ${eps.length}`; }
+}
 // Latest-wrong items of every graded kind, newest first, kept by item id across sessions.
 function recentMistakes() {
   return [...Object.values(latestBy(S.mcqAttempts)).filter(a => !a.correct).map(a => ({ id: a.questionId, at: a.answeredAt, kind: 'q' })),
@@ -1692,7 +1735,7 @@ VIEWS.listen = () => {
   <p class="lede">${all ? 'פרק או שניים לכל מערכת בגוף, ובסוף פרק על גוף הרץ במאמץ. אפשר לסמן כל פרק כ״הואזן״, והסימון נשמר.' : `${ready ? `${ready} מתוך ${D.episodes.length} פרקים מוכנים.` : 'טרם צורפו הקלטות.'} כשהקבצים יגיעו, כל פרק יקבל כאן נגן. בינתיים אפשר להדביק לפרק קישור (למשל מ-Google Drive), והוא יישמר אצלך.`}</p></div>
   ${D.episodes.map(e => {
     const link = S.listenLinks[e.id]; const editing = view.listenEdit === e.id;
-    return `<article class="ep"><div class="row between"><span class="n">פרק ${String(e.n).padStart(2, '0')}</span>${e.src && e.durationSec ? `<span class="counter">${fmtDur(e.durationSec)}</span>` : `<span class="chip ${e.src || link ? 'ok' : ''}">${e.src || link ? 'מוכן' : 'טרם צורפה הקלטה'}</span>`}</div>
+    return `<article class="ep" id="ep-${e.id}"><div class="row between"><span class="n">פרק ${String(e.n).padStart(2, '0')}</span>${e.src && e.durationSec ? `<span class="counter">${fmtDur(e.durationSec)}</span>` : `<span class="chip ${e.src || link ? 'ok' : ''}">${e.src || link ? 'מוכן' : 'טרם צורפה הקלטה'}</span>`}</div>
       <h3>${tx(e.title)}</h3>${e.topicId ? `<div class="row">${topicChip(e.topicId)}</div>` : ''}
       ${e.src ? `<audio controls preload="none" src="${esc(e.src)}" data-ep="${e.id}" aria-label="נגן: ${esc(e.title)}"></audio>` : ''}
       ${!e.src && link && !editing ? `<div class="row"><a class="btn small primary" href="${esc(link)}" target="_blank" rel="noopener">פתיחת הפרק ↗</a><button class="btn small ghost" data-act="listenEdit" data-args='{"id":"${e.id}"}'>עריכה</button><button class="btn small ghost" data-act="listenRemove" data-args='{"id":"${e.id}"}'>הסרה</button></div>` : ''}
@@ -2124,7 +2167,7 @@ document.addEventListener('click', e => {
 });
 document.addEventListener('change', e => {
   const el = e.target;
-  if (el.dataset.actChange === 'listened') { S.listened[el.dataset.ep] = el.checked; commit(); return; }
+  if (el.dataset.actChange === 'listened') { S.listened[el.dataset.ep] = el.checked; commit(); syncListened(el.dataset.ep); return; }
   if (el.id === 'glossTopic') { view.glossTopic = el.value; $('#glossList').innerHTML = glossListHTML(); return; }
   if (el.dataset.rubric !== undefined) return;
   const form = el.closest('[data-form]'); if (!form) return;
@@ -2163,6 +2206,8 @@ document.addEventListener('keydown', e => {
   }
 });
 document.addEventListener('toggle', e => { const k = e.target.dataset?.actToggle; if (k === 'examMap') view.examMapOpen = e.target.open; if (k === 'toc') view.tocOpen = e.target.open; }, true);
+// An episode played to the end counts as heard.
+document.addEventListener('ended', e => { const id = e.target.dataset?.ep; if (id && !S.listened[id]) { S.listened[id] = true; commit(); syncListened(id); toast('הפרק סומן כהואזן'); } }, true);
 window.addEventListener('hashchange', () => { const r = location.hash.slice(1); if (r && r !== route && ROUTES[r]) go(r); });
 
 // ---------- boot ----------
